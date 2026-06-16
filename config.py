@@ -1,12 +1,16 @@
-"""Загрузка конфигурации бота: токен и правила маршрутизации."""
+"""Загрузка конфигурации бота: токен (из env) и правила маршрутизации.
+
+Правила берутся из routes_data.py (обычный Python-модуль — он автоматически
+попадает в бандл серверлесс-функции Vercel, т.к. импортируется).
+"""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 
-import yaml
 from dotenv import load_dotenv
+
+import routes_data
 
 load_dotenv()
 
@@ -52,28 +56,22 @@ def _norm_tags(raw) -> set[str]:
     return tags
 
 
+def _thread(value) -> int | None:
+    return int(value) if value is not None else None
+
+
 def load_config() -> Config:
     token = os.getenv("BOT_TOKEN", "").strip()
     if not token:
         raise RuntimeError(
-            "Не задан BOT_TOKEN. Скопируйте .env.example в .env и впишите токен бота."
+            "Не задан BOT_TOKEN. Локально — впишите в .env; на Vercel — в Environment Variables."
         )
 
-    routes_file = os.getenv("ROUTES_FILE", "config/routes.yaml")
-    path = Path(routes_file)
-    if not path.is_absolute():
-        path = Path(__file__).parent / path
-    if not path.exists():
-        raise RuntimeError(f"Не найден файл маршрутов: {path}")
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    default_source = data.get("source_chat_id")
-    default_dest = data.get("dest_chat_id")
+    default_source = getattr(routes_data, "SOURCE_CHAT_ID", None)
+    default_dest = getattr(routes_data, "DEST_CHAT_ID", None)
 
     routes: list[Route] = []
-    for i, item in enumerate(data.get("routes", []), start=1):
+    for i, item in enumerate(routes_data.ROUTES, start=1):
         source_chat_id = item.get("source_chat_id", default_source)
         dest_chat_id = item.get("dest_chat_id", default_dest)
         if source_chat_id is None or dest_chat_id is None:
@@ -84,22 +82,14 @@ def load_config() -> Config:
             Route(
                 name=item.get("name", f"route-{i}"),
                 source_chat_id=int(source_chat_id),
-                source_thread_id=(
-                    int(item["source_thread_id"])
-                    if item.get("source_thread_id") is not None
-                    else None
-                ),
+                source_thread_id=_thread(item.get("source_thread_id")),
                 dest_chat_id=int(dest_chat_id),
-                dest_thread_id=(
-                    int(item["dest_thread_id"])
-                    if item.get("dest_thread_id") is not None
-                    else None
-                ),
+                dest_thread_id=_thread(item.get("dest_thread_id")),
                 match_hashtags=_norm_tags(item.get("match_hashtags")),
             )
         )
 
     if not routes:
-        raise RuntimeError("В файле маршрутов нет ни одного правила (routes).")
+        raise RuntimeError("В routes_data.py нет ни одного правила (ROUTES).")
 
     return Config(token=token, routes=routes)
