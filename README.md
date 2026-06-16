@@ -111,8 +111,12 @@ git push -u origin main
 
 ### 8. Привязать webhook к Telegram
 
-Webhook нужно зарегистрировать один раз (и после смены адреса). Локально, с тем
-же `WEBHOOK_SECRET` в `.env`:
+**Простой способ (рекомендуется):** после деплоя один раз откройте в браузере
+`https://<project>.vercel.app/api/setup` — эндпоинт сам зарегистрирует webhook
+(использует `BOT_TOKEN` и `WEBHOOK_SECRET` из переменных окружения Vercel).
+В ответе должно прийти `"ok": true`.
+
+**Альтернатива — вручную локально**, с тем же `WEBHOOK_SECRET` в `.env`:
 
 ```bash
 python set_webhook.py set https://<project>.vercel.app/api/index
