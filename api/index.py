@@ -16,6 +16,7 @@ import asyncio
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler
@@ -45,6 +46,19 @@ def _set_webhook(host: str) -> dict:
     try:
         with urllib.request.urlopen(api, data=data, timeout=20) as resp:
             result = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        try:
+            detail = json.loads(body)
+        except Exception:  # noqa: BLE001
+            detail = body
+        return {
+            "ok": False,
+            "error": f"HTTP {e.code}",
+            "telegram_response": detail,
+            "secret_token_sent": bool(_secret),
+            "webhook_url": webhook_url,
+        }
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "webhook_url": webhook_url}
     result["webhook_url"] = webhook_url
