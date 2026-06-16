@@ -1,11 +1,17 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "config/**"
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": { "includeFiles": "config/**" }
+    },
+    {
+      "src": "api/setup.py",
+      "use": "@vercel/python"
     }
-  },
-  "rewrites": [
-    { "source": "/webhook", "destination": "/api/index" }
+  ],
+  "routes": [
+    { "src": "/webhook", "dest": "/api/index" },
+    { "src": "/api/(.*)", "dest": "/api/$1" }
   ]
 }
